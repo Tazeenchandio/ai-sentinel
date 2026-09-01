@@ -81,7 +81,7 @@ AI Sentinel is an autonomous background monitoring and intelligence platform des
 
 ### 2. Clone & Install
 ```bash
-git clone https://github.com/user/ai-sentinel.git
+git clone https://github.com/Tazeenchandio/ai-sentinel.git
 cd ai-sentinel
 npm install
 ```
