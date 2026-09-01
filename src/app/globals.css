@@ -1,0 +1,65 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: #060911;
+  color: #f3f4f6;
+  font-family: var(--font-inter);
+  overflow-x: hidden;
+  letter-spacing: -0.01em;
+}
+
+.glass-panel {
+  background: rgba(13, 20, 36, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(22, 33, 56, 0.75);
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.12);
+  transform: translateY(-1px);
+}
+
+.shadow-glow {
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.25);
+}
+
+.shadow-glow-red {
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.25);
+}
+
+.glow-border {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.glow-text-blue {
+  text-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #060911;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}

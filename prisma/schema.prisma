@@ -1,0 +1,146 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String?
+  passwordHash  String
+  role          String          @default("USER") // USER, ADMIN
+  isDemo        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  watches       Watch[]
+  notifications Notification[]
+  preferences   UserPreference?
+  aiUsages      AIUsageLog[]
+}
+
+model UserPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAlerts          Boolean  @default(true)
+  minNotificationLevel String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  digestFrequency      String   @default("DAILY")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Watch {
+  id                String          @id @default(uuid())
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  description       String?
+  type              String          // GITHUB_REPO, WEBSITE, RSS_FEED, TOPIC_WATCH
+  target            String
+  checkIntervalMins Int             @default(60)
+  targetImportance  String          @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  keywords          String          @default("[]") // JSON string array
+  aiInstructions    String?
+  status            String          @default("ACTIVE") // ACTIVE, PAUSED, ERROR, PENDING
+  lastCheckedAt     DateTime?
+  nextCheckAt       DateTime?
+  lastErrorMessage  String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  snapshots         WatchSnapshot[]
+  events            ChangeEvent[]
+  jobs              JobLog[]
+}
+
+model WatchSnapshot {
+  id         String   @id @default(uuid())
+  watchId    String
+  watch      Watch    @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  hash       String
+  rawContent String
+  normalized String
+  metadata   String?  // JSON string
+  createdAt  DateTime @default(now())
+}
+
+model ChangeEvent {
+  id                String       @id @default(uuid())
+  watchId           String
+  watch             Watch        @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  eventType         String       // COMMIT, RELEASE, DOM_CHANGE, RSS_ITEM, TOPIC_NEWS
+  rawBefore         String?
+  rawAfter          String?
+  normalizedBefore  String?
+  normalizedAfter   String?
+  diffSummary       String?
+  importance        String       @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  confidence        Float        @default(0.0)
+  category          String       // product_update, breaking_change, security, documentation, cosmetic
+  
+  whatChanged       String
+  whyItMatters      String
+  recommendedAction String?
+  aiSummary         String
+  affectedAreas     String       @default("[]") // JSON string array
+  tags              String       @default("[]") // JSON string array
+  
+  status            String       @default("NEW") // NEW, INVESTIGATING, ACTION_REQUIRED, RESOLVED, IGNORED
+  isMeaningful      Boolean      @default(true)
+  detectedAt        DateTime     @default(now())
+
+  aiAnalyses        AIAnalysis[]
+  notifications     Notification[]
+}
+
+model AIAnalysis {
+  id               String      @id @default(uuid())
+  eventId          String
+  event            ChangeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  modelUsed        String
+  promptTokens     Int         @default(0)
+  completionTokens Int         @default(0)
+  rawPrompt        String
+  rawResponse      String
+  parsedOutput     String      // JSON string
+  createdAt        DateTime    @default(now())
+}
+
+model Notification {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String?
+  event     ChangeEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  title     String
+  message   String
+  severity  String       // LOW, MEDIUM, HIGH, CRITICAL
+  isRead    Boolean      @default(false)
+  createdAt DateTime     @default(now())
+}
+
+model JobLog {
+  id         String   @id @default(uuid())
+  watchId    String?
+  watch      Watch?   @relation(fields: [watchId], references: [id], onDelete: SetNull)
+  jobType    String   // SCAN_WATCH, TRIAGE_EVENT, DEEP_ANALYSIS
+  status     String   // SUCCESS, FAILED, RETRYING
+  details    String?
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model AIUsageLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  model     String
+  tokens    Int
+  costEst   Float
+  purpose   String   // TRIAGE, DEEP_ANALYSIS
+  createdAt DateTime @default(now())
+}
