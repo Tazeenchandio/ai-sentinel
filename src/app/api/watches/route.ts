@@ -18,7 +18,7 @@ export async function GET() {
       where: userId ? { userId } : {},
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { changeEvents: true } },
+        _count: { select: { events: true } },
       },
     });
 
