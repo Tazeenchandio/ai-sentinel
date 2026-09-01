@@ -2,47 +2,52 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/session';
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get('q')?.trim() || '';
+export const dynamic = 'force-dynamic';
 
-  if (!q) {
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get('q');
+
+    if (!q || q.trim().length === 0) {
+      return NextResponse.json({ watches: [], events: [] });
+    }
+
+    const user = await getCurrentUser();
+    let userId = user?.id;
+    if (!userId) {
+      const demo = await db.user.findFirst({ where: { isDemo: true } });
+      userId = demo?.id;
+    }
+
+    const [watches, events] = await Promise.all([
+      db.watch.findMany({
+        where: {
+          ...(userId && { userId }),
+          OR: [
+            { name: { contains: q } },
+            { target: { contains: q } },
+            { aiInstructions: { contains: q } },
+          ],
+        },
+        take: 10,
+      }),
+      db.changeEvent.findMany({
+        where: {
+          ...(userId && { watch: { userId } }),
+          OR: [
+            { aiSummary: { contains: q } },
+            { whatChanged: { contains: q } },
+            { whyItMatters: { contains: q } },
+          ],
+        },
+        take: 10,
+        include: { watch: { select: { name: true, target: true } } },
+      }),
+    ]);
+
+    return NextResponse.json({ watches: watches || [], events: events || [] });
+  } catch (err: any) {
     return NextResponse.json({ watches: [], events: [] });
   }
-
-  const user = await getCurrentUser();
-  let userId = user?.id;
-  if (!userId) {
-    const demo = await db.user.findFirst({ where: { isDemo: true } });
-    userId = demo?.id;
-  }
-
-  const watches = await db.watch.findMany({
-    where: {
-      userId,
-      OR: [
-        { name: { contains: q } },
-        { description: { contains: q } },
-        { target: { contains: q } },
-        { keywords: { contains: q } },
-      ],
-    },
-    take: 10,
-  });
-
-  const events = await db.changeEvent.findMany({
-    where: {
-      watch: { userId },
-      OR: [
-        { whatChanged: { contains: q } },
-        { whyItMatters: { contains: q } },
-        { aiSummary: { contains: q } },
-        { category: { contains: q } },
-      ],
-    },
-    take: 10,
-    include: { watch: { select: { id: true, name: true, type: true } } },
-  });
-
-  return NextResponse.json({ watches, events });
 }

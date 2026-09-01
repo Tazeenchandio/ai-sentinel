@@ -3,69 +3,74 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/session';
 import { validateTargetUrl } from '@/lib/security/ssrf';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  const user = await getCurrentUser();
-  const userId = user?.id;
+  try {
+    const user = await getCurrentUser();
+    let userId = user?.id;
+    if (!userId) {
+      const demo = await db.user.findFirst({ where: { isDemo: true } });
+      userId = demo?.id;
+    }
 
-  if (!userId) {
-    // If unauthenticated in demo mode, fallback to demo user watches
-    const demoUser = await db.user.findFirst({ where: { isDemo: true } });
     const watches = await db.watch.findMany({
-      where: { userId: demoUser?.id },
+      where: userId ? { userId } : {},
       orderBy: { createdAt: 'desc' },
-      include: { events: { take: 1, orderBy: { detectedAt: 'desc' } } },
+      include: {
+        _count: { select: { changeEvents: true } },
+      },
     });
-    return NextResponse.json({ watches });
+
+    return NextResponse.json({ watches: watches || [] });
+  } catch (err: any) {
+    return NextResponse.json({ watches: [] });
   }
-
-  const watches = await db.watch.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: { events: { take: 1, orderBy: { detectedAt: 'desc' } } },
-  });
-
-  return NextResponse.json({ watches });
 }
 
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const { name, description, type, target, checkIntervalMins, targetImportance, keywords, aiInstructions } = await req.json();
-
-    if (!name || !type || !target) {
-      return NextResponse.json({ error: 'Name, Watch Type, and Target are required.' }, { status: 400 });
+    const user = await getCurrentUser();
+    let userId = user?.id;
+    if (!userId) {
+      const demo = await db.user.findFirst({ where: { isDemo: true } });
+      userId = demo?.id;
     }
 
-    // SSRF Check if website or RSS
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { name, type, target, checkIntervalMins, targetImportance, keywords, aiInstructions } = body;
+
+    if (!name || !type || !target) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
     if (type === 'WEBSITE' || type === 'RSS_FEED') {
       const ssrfCheck = await validateTargetUrl(target);
-      if (!ssrfCheck.allowed) {
-        return NextResponse.json({ error: `SSRF Security Check Failed: ${ssrfCheck.reason}` }, { status: 400 });
+      if (!ssrfCheck.valid) {
+        return NextResponse.json({ error: `Security Policy: ${ssrfCheck.reason}` }, { status: 400 });
       }
     }
 
-    const newWatch = await db.watch.create({
+    const watch = await db.watch.create({
       data: {
-        userId: user.id,
+        userId,
         name,
-        description,
         type,
         target,
-        checkIntervalMins: Number(checkIntervalMins) || 60,
-        targetImportance: targetImportance || 'MEDIUM',
-        keywords: JSON.stringify(keywords || []),
-        aiInstructions,
-        status: 'ACTIVE',
+        checkIntervalMins: checkIntervalMins || 60,
+        targetImportance: targetImportance || 'HIGH',
+        keywords: keywords ? JSON.stringify(keywords) : '[]',
+        aiInstructions: aiInstructions || null,
         nextCheckAt: new Date(),
       },
     });
 
-    return NextResponse.json({ watch: newWatch });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ watch }, { status: 201 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
