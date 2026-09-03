@@ -72,7 +72,7 @@ export async function executeWatchScan(watchId: string): Promise<{ success: bool
           data: {
             watchId: watch.id,
             eventType: compareResult.eventType || 'CONTENT_UPDATE',
-            rawBefore: fetchResult.rawContent ? fetchResult.rawContent.substring(0, 10000) : null,
+            rawBefore: lastSnapshot?.rawContent ? lastSnapshot.rawContent.substring(0, 10000) : null,
             rawAfter: fetchResult.rawContent ? fetchResult.rawContent.substring(0, 10000) : null,
             normalizedBefore: compareResult.normalizedBefore,
             normalizedAfter: compareResult.normalizedAfter,

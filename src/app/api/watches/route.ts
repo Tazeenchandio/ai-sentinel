@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     if (type === 'WEBSITE' || type === 'RSS_FEED') {
       const ssrfCheck = await validateTargetUrl(target);
-      if (!ssrfCheck.valid) {
+      if (!ssrfCheck.allowed) {
         return NextResponse.json({ error: `Security Policy: ${ssrfCheck.reason}` }, { status: 400 });
       }
     }
